@@ -963,6 +963,36 @@ pub async fn save_channel_config(channel: ChannelConfig) -> Result<String, Strin
             channel_obj[key] = value.clone();
         }
     }
+
+    // 飞书特殊处理：确保 allowFrom 是数组格式，dmPolicy 有默认值
+    if channel.id == "feishu" {
+        // 如果没有设置 dmPolicy，默认为 "open"
+        if channel_obj.get("dmPolicy").is_none() {
+            channel_obj["dmPolicy"] = json!("open");
+            info!("[保存渠道配置] 飞书未设置 dmPolicy，默认使用 'open'");
+        }
+
+        // 确保 allowFrom 是数组格式
+        let allow_from_value = channel_obj.get("allowFrom").cloned();
+        if let Some(allow_from) = allow_from_value {
+            // 如果是字符串，转换为数组
+            if allow_from.is_string() {
+                let allow_str = allow_from.as_str().unwrap_or("*");
+                channel_obj["allowFrom"] = json!([allow_str]);
+                info!("[保存渠道配置] 飞书 allowFrom 从字符串转换为数组: [{}]", allow_str);
+            }
+        } else {
+            // 如果没有设置 allowFrom，默认为 ["*"]
+            channel_obj["allowFrom"] = json!(["*"]);
+            info!("[保存渠道配置] 飞书未设置 allowFrom，默认使用 ['*']");
+        }
+
+        // 如果 dmPolicy 是 "open"，确保 allowFrom 是 ["*"]
+        if channel_obj.get("dmPolicy").and_then(|v| v.as_str()) == Some("open") {
+            channel_obj["allowFrom"] = json!(["*"]);
+            info!("[保存渠道配置] 飞书使用 'open' 模式，设置 allowFrom 为 ['*']");
+        }
+    }
     
     // 更新 channels 配置
     config["channels"][&channel.id] = channel_obj;
@@ -1115,22 +1145,21 @@ pub async fn check_feishu_plugin() -> Result<FeishuPluginStatus, String> {
 /// 安装飞书插件
 #[command]
 pub async fn install_feishu_plugin() -> Result<String, String> {
-    info!("[飞书插件] 开始安装飞书插件...");
-    
+    info!("[飞书插件] 开始安装飞书官方插件...");
+
     // 先检查是否已安装
     let status = check_feishu_plugin().await?;
     if status.installed {
         info!("[飞书插件] 飞书插件已安装，跳过");
         return Ok(format!("飞书插件已安装: {}", status.plugin_name.unwrap_or_default()));
     }
-    
-    // 安装飞书插件
-    // 注意：使用 @m1heng-clawd/feishu 包名
-    info!("[飞书插件] 执行 openclaw plugins install @m1heng-clawd/feishu ...");
-    match shell::run_openclaw(&["plugins", "install", "@m1heng-clawd/feishu"]) {
+
+    // 使用官方安装命令（通过 npx 执行，使用淘宝镜像加速）
+    info!("[飞书插件] 执行 npx -y @larksuite/openclaw-lark-tools update ...");
+    match shell::run_command_output("npx", &["-y", "--registry=https://registry.npmmirror.com", "@larksuite/openclaw-lark-tools", "update"]) {
         Ok(output) => {
             info!("[飞书插件] 安装输出: {}", output);
-            
+
             // 验证安装结果
             let verify_status = check_feishu_plugin().await?;
             if verify_status.installed {
@@ -1143,7 +1172,7 @@ pub async fn install_feishu_plugin() -> Result<String, String> {
         }
         Err(e) => {
             error!("[飞书插件] ✗ 安装失败: {}", e);
-            Err(format!("安装飞书插件失败: {}\n\n请手动执行: openclaw plugins install @m1heng-clawd/feishu", e))
+            Err(format!("安装飞书插件失败: {}\n\n请手动执行: npx -y @larksuite/openclaw-lark-tools update", e))
         }
     }
 }

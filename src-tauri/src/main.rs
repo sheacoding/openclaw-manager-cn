@@ -8,7 +8,7 @@ mod commands;
 mod models;
 mod utils;
 
-use commands::{config, diagnostics, installer, process, service};
+use commands::{config, diagnostics, docs, installer, process, service};
 
 fn main() {
     // 初始化日志 - 默认显示 info 级别日志
@@ -57,6 +57,8 @@ fn main() {
             // 飞书插件管理
             config::check_feishu_plugin,
             config::install_feishu_plugin,
+            // 文档
+            docs::get_feishu_setup_doc,
             // 诊断测试
             diagnostics::run_doctor,
             diagnostics::test_ai_connection,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   User,
@@ -28,19 +28,57 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
     userName: '主人',
     timezone: 'Asia/Shanghai',
   });
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showUninstallConfirm, setShowUninstallConfirm] = useState(false);
   const [uninstalling, setUninstalling] = useState(false);
   const [uninstallResult, setUninstallResult] = useState<InstallResult | null>(null);
 
+  // 加载配置
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  const loadConfig = async () => {
+    try {
+      const config = await invoke<any>('get_config');
+      if (config.identity) {
+        setIdentity({
+          botName: config.identity.bot_name || 'Clawd',
+          userName: config.identity.user_name || '主人',
+          timezone: config.identity.timezone || 'Asia/Shanghai',
+        });
+      }
+    } catch (e) {
+      console.error('加载配置失败:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      // TODO: 保存身份配置
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // 读取当前配置
+      const currentConfig = await invoke<any>('get_config');
+
+      // 更新身份配置
+      const updatedConfig = {
+        ...currentConfig,
+        identity: {
+          bot_name: identity.botName,
+          user_name: identity.userName,
+          timezone: identity.timezone,
+        },
+      };
+
+      // 保存配置
+      await invoke('save_config', { config: updatedConfig });
+
       alert('设置已保存！');
     } catch (e) {
       console.error('保存失败:', e);
+      alert(`保存失败: ${e}`);
     } finally {
       setSaving(false);
     }
@@ -84,7 +122,12 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
 
   return (
     <div className="h-full overflow-y-auto scroll-container pr-2">
-      <div className="max-w-2xl space-y-6">
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 size={32} className="animate-spin text-claw-400" />
+        </div>
+      ) : (
+        <div className="max-w-2xl space-y-6">
         {/* 身份配置 */}
         <div className="bg-dark-700 rounded-2xl p-6 border border-dark-500">
           <div className="flex items-center gap-3 mb-6">
@@ -347,6 +390,7 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }

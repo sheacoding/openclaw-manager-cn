@@ -23,14 +23,41 @@ export function Header({ currentPage }: HeaderProps) {
 
   const handleOpenDashboard = async () => {
     setOpening(true);
+
     try {
-      // 获取带 token 的 Dashboard URL（如果没有 token 会自动生成）
+      // 步骤 1: 获取带 token 的 Dashboard URL
+      console.log('[Dashboard] 正在获取 Dashboard URL...');
       const url = await invoke<string>('get_dashboard_url');
-      await open(url);
+      console.log('[Dashboard] ✓ 获取成功:', url.substring(0, 60) + '...');
+
+      // 步骤 2: 尝试使用 Tauri open API 打开
+      try {
+        await open(url);
+        console.log('[Dashboard] ✓ 使用 Tauri open() 打开成功');
+      } catch (openError) {
+        // 如果 Tauri open 失败，使用 window.open（仍然带 token）
+        console.warn('[Dashboard] Tauri open() 失败，使用 window.open:', openError);
+        window.open(url, '_blank');
+        console.log('[Dashboard] ✓ 使用 window.open() 打开成功');
+      }
     } catch (e) {
-      console.error('打开 Dashboard 失败:', e);
-      // 降级方案：使用 window.open（不带 token）
-      window.open('http://localhost:18789', '_blank');
+      // 如果获取 URL 失败，尝试手动构建 URL
+      console.error('[Dashboard] ✗ 获取 URL 失败:', e);
+
+      try {
+        // 尝试从配置文件读取 token
+        console.log('[Dashboard] 尝试手动构建 URL...');
+        const token = await invoke<string>('get_or_create_gateway_token');
+        const manualUrl = `http://localhost:18789?token=${token}`;
+        console.log('[Dashboard] ✓ 手动构建成功:', manualUrl.substring(0, 60) + '...');
+        window.open(manualUrl, '_blank');
+      } catch (tokenError) {
+        // 最后的降级方案：打开不带 token 的 URL，让用户手动输入
+        console.error('[Dashboard] ✗ 所有方案失败，使用最终降级方案:', tokenError);
+        const fallbackUrl = 'http://localhost:18789';
+        window.open(fallbackUrl, '_blank');
+        alert('无法自动获取 Token，请在 Dashboard 页面手动输入 Token。\n\n可以在设置页面查看 Token。');
+      }
     } finally {
       setOpening(false);
     }

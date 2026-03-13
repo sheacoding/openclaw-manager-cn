@@ -517,8 +517,8 @@ if (-not $nodeVersion) {
     exit 1
 }
 
-Write-Host "使用 npm 安装 OpenClaw..."
-npm install -g openclaw@latest --unsafe-perm
+Write-Host "使用 npm 安装 OpenClaw (淘宝镜像)..."
+npm install -g openclaw@latest --registry=https://registry.npmmirror.com --unsafe-perm
 
 # 验证安装
 $openclawVersion = openclaw --version 2>$null
@@ -564,8 +564,8 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
-echo "使用 npm 安装 OpenClaw..."
-npm install -g openclaw@latest --unsafe-perm
+echo "使用 npm 安装 OpenClaw (淘宝镜像)..."
+npm install -g openclaw@latest --registry=https://registry.npmmirror.com --unsafe-perm
 
 # 验证安装
 openclaw --version

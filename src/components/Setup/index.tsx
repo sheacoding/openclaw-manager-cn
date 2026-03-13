@@ -223,7 +223,7 @@ export function Setup({ onComplete, embedded = false }: SetupProps) {
                   ) : (
                     <>
                       <Download className="w-4 h-4" />
-                      安装
+                      安装 Node.js
                     </>
                   )}
                 </button>
@@ -242,7 +242,9 @@ export function Setup({ onComplete, embedded = false }: SetupProps) {
                 <div>
                   <p className="text-white font-medium">OpenClaw</p>
                   <p className="text-sm text-dark-400">
-                    {envStatus.openclaw_version || '未安装'}
+                    {envStatus.openclaw_version && envStatus.openclaw_version.trim() !== ''
+                      ? envStatus.openclaw_version
+                      : '未安装'}
                   </p>
                 </div>
               </div>
@@ -265,7 +267,7 @@ export function Setup({ onComplete, embedded = false }: SetupProps) {
                   ) : (
                     <>
                       <Download className="w-4 h-4" />
-                      安装
+                      安装 OpenClaw
                     </>
                   )}
                 </button>
