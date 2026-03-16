@@ -348,12 +348,20 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
             docs_url: Some("https://docs.openclaw.ai/providers/minimax".to_string()),
             suggested_models: vec![
                 SuggestedModel {
-                    id: "minimax-m2.1".to_string(),
-                    name: "MiniMax M2.1".to_string(),
-                    description: Some("最新模型".to_string()),
+                    id: "MiniMax-M2.5".to_string(),
+                    name: "MiniMax M2.5".to_string(),
+                    description: Some("最新旗舰模型".to_string()),
                     context_window: Some(200000),
                     max_tokens: Some(8192),
                     recommended: true,
+                },
+                SuggestedModel {
+                    id: "minimax-m2.1".to_string(),
+                    name: "MiniMax M2.1".to_string(),
+                    description: Some("上一代模型".to_string()),
+                    context_window: Some(200000),
+                    max_tokens: Some(8192),
+                    recommended: false,
                 },
             ],
         },
