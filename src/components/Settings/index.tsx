@@ -41,14 +41,18 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
 
   const loadConfig = async () => {
     try {
-      const config = await invoke<any>('get_config');
-      if (config.identity) {
-        setIdentity({
-          botName: config.identity.bot_name || 'Clawd',
-          userName: config.identity.user_name || '主人',
-          timezone: config.identity.timezone || 'Asia/Shanghai',
-        });
-      }
+      // 从 IDENTITY.md 和 USER.md 读取配置
+      const userIdentity = await invoke<{
+        bot_name: string;
+        user_name: string;
+        timezone: string;
+      }>('get_user_identity');
+
+      setIdentity({
+        botName: userIdentity.bot_name,
+        userName: userIdentity.user_name,
+        timezone: userIdentity.timezone,
+      });
     } catch (e) {
       console.error('加载配置失败:', e);
     } finally {
@@ -59,23 +63,19 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // 读取当前配置
-      const currentConfig = await invoke<any>('get_config');
-
-      // 更新身份配置
-      const updatedConfig = {
-        ...currentConfig,
+      // 保存到 IDENTITY.md 和 USER.md 文件
+      await invoke('save_user_identity', {
         identity: {
           bot_name: identity.botName,
           user_name: identity.userName,
           timezone: identity.timezone,
         },
-      };
+      });
 
-      // 保存配置
-      await invoke('save_config', { config: updatedConfig });
+      // 重新加载配置验证
+      await loadConfig();
 
-      alert('设置已保存！');
+      alert('设置已保存！下次新开对话后生效。');
     } catch (e) {
       console.error('保存失败:', e);
       alert(`保存失败: ${e}`);
@@ -136,7 +136,7 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-white">身份配置</h3>
-              <p className="text-xs text-gray-500">设置 AI 助手的名称和称呼</p>
+              <p className="text-xs text-gray-500">配置写入记忆文件，下次新对话起效</p>
             </div>
           </div>
 
@@ -154,6 +154,7 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
                 placeholder="Clawd"
                 className="input-base"
               />
+              <p className="text-xs text-gray-600 mt-1">写入 IDENTITY.md，下次新对话后 AI 会认识自己的新名字</p>
             </div>
 
             <div>
@@ -169,6 +170,7 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
                 placeholder="主人"
                 className="input-base"
               />
+              <p className="text-xs text-gray-600 mt-1">写入 USER.md，下次新对话后 AI 会用此称呼你</p>
             </div>
 
             <div>

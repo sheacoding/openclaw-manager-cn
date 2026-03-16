@@ -1,13 +1,13 @@
 use crate::models::{
     AIConfigOverview, ChannelConfig, ConfiguredModel, ConfiguredProvider,
-    ModelConfig, ModelCostConfig, OfficialProvider, OpenClawConfig,
-    ProviderConfig, SuggestedModel,
+    ModelConfig, OfficialProvider, SuggestedModel,
 };
 use crate::utils::{file, platform, shell};
 use log::{debug, error, info, warn};
 use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use tauri::command;
 
 /// 获取 openclaw.json 配置
@@ -1175,4 +1175,181 @@ pub async fn install_feishu_plugin() -> Result<String, String> {
             Err(format!("安装飞书插件失败: {}\n\n请手动执行: npx -y @larksuite/openclaw-lark-tools update", e))
         }
     }
+}
+
+// ============ USER.md 用户身份配置 ============
+
+/// 用户身份配置结构
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserIdentity {
+    pub bot_name: String,      // AI 助手名称（来自 IDENTITY.md）
+    pub user_name: String,     // 用户称呼（来自 USER.md）
+    pub timezone: String,      // 时区（来自 USER.md）
+}
+
+/// 获取 USER.md 文件路径
+fn get_user_md_path() -> PathBuf {
+    let config_dir = platform::get_config_dir();
+    PathBuf::from(config_dir).join("workspace").join("USER.md")
+}
+
+/// 获取 IDENTITY.md 文件路径
+fn get_identity_md_path() -> PathBuf {
+    let config_dir = platform::get_config_dir();
+    PathBuf::from(config_dir).join("workspace").join("IDENTITY.md")
+}
+
+/// 从 Markdown 中提取字段值
+fn extract_field(content: &str, field_name: &str) -> Option<String> {
+    let lines: Vec<&str> = content.lines().collect();
+
+    for (i, line) in lines.iter().enumerate() {
+        if line.contains(field_name) {
+            // 提取 "**Name:** 峰哥" 中的 "峰哥"
+            let parts: Vec<&str> = line.split(field_name).collect();
+            if parts.len() > 1 {
+                let value = parts[1].trim();
+                // 如果当前行有值且不是占位符，返回
+                if !value.is_empty() && value != "_(optional)_" && !value.starts_with("_(") {
+                    return Some(value.to_string());
+                }
+                // 如果当前行为空，检查下一行（处理换行格式）
+                if value.is_empty() && i + 1 < lines.len() {
+                    let next_line = lines[i + 1].trim();
+                    if !next_line.is_empty() && !next_line.starts_with("_") && !next_line.starts_with("-") {
+                        return Some(next_line.to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// 读取 USER.md 和 IDENTITY.md 配置
+#[command]
+pub async fn get_user_identity() -> Result<UserIdentity, String> {
+    info!("[用户身份] 读取 USER.md 和 IDENTITY.md 配置...");
+
+    let user_md_path = get_user_md_path();
+    let identity_md_path = get_identity_md_path();
+
+    // 读取 IDENTITY.md 获取 AI 助手名称
+    let bot_name = if identity_md_path.exists() {
+        let content = std::fs::read_to_string(&identity_md_path)
+            .map_err(|e| format!("读取 IDENTITY.md 失败: {}", e))?;
+        extract_field(&content, "**Name:**").unwrap_or_else(|| "Clawd".to_string())
+    } else {
+        info!("[用户身份] IDENTITY.md 不存在，使用默认 AI 名称");
+        "Clawd".to_string()
+    };
+
+    // 读取 USER.md 获取用户称呼和时区
+    let (user_name, timezone) = if user_md_path.exists() {
+        let content = std::fs::read_to_string(&user_md_path)
+            .map_err(|e| format!("读取 USER.md 失败: {}", e))?;
+
+        let call_them = extract_field(&content, "**What to call them:**");
+        let tz = extract_field(&content, "**Timezone:**");
+
+        (
+            call_them.unwrap_or_else(|| "主人".to_string()),
+            tz.unwrap_or_else(|| "Asia/Shanghai".to_string())
+        )
+    } else {
+        info!("[用户身份] USER.md 不存在，使用默认值");
+        ("主人".to_string(), "Asia/Shanghai".to_string())
+    };
+
+    info!("[用户身份] ✓ 读取成功 - Bot: {}, User: {}, TZ: {}", bot_name, user_name, timezone);
+
+    Ok(UserIdentity {
+        bot_name,
+        user_name,
+        timezone,
+    })
+}
+
+/// 保存 USER.md 和 IDENTITY.md 配置
+#[command]
+pub async fn save_user_identity(identity: UserIdentity) -> Result<String, String> {
+    info!("[用户身份] 保存配置...");
+    debug!("[用户身份] Bot: {}, User: {}, TZ: {}", identity.bot_name, identity.user_name, identity.timezone);
+
+    let user_md_path = get_user_md_path();
+    let identity_md_path = get_identity_md_path();
+
+    // 确保 workspace 目录存在
+    if let Some(parent) = user_md_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("创建 workspace 目录失败: {}", e))?;
+    }
+
+    // 保存 IDENTITY.md（AI 助手名称）
+    let identity_content = format!(
+        r#"# IDENTITY.md - Who Am I?
+
+_Fill this in during your first conversation. Make it yours._
+
+- **Name:** {}
+- **Creature:** _(AI? robot? familiar? ghost in the machine? something weirder?)_
+- **Vibe:** _(how do you come across? sharp? warm? chaotic? calm?)_
+- **Emoji:** _(your signature — pick one that feels right)_
+- **Avatar:** _(workspace-relative path, http(s) URL, or data URI)_
+
+---
+
+This isn't just metadata. It's the start of figuring out who you are.
+
+Notes:
+
+- Save this file at the workspace root as `IDENTITY.md`.
+- For avatars, use a workspace-relative path like `avatars/openclaw.png`.
+"#,
+        identity.bot_name
+    );
+
+    std::fs::write(&identity_md_path, identity_content)
+        .map_err(|e| format!("写入 IDENTITY.md 失败: {}", e))?;
+
+    info!("[用户身份] ✓ IDENTITY.md 保存成功");
+
+    // 保存 USER.md（用户称呼和时区）
+    // 先读取现有内容，保留 Name 字段
+    let existing_user_name = if user_md_path.exists() {
+        let content = std::fs::read_to_string(&user_md_path).ok();
+        content.and_then(|c| extract_field(&c, "**Name:**"))
+    } else {
+        None
+    };
+
+    let user_content = format!(
+        r#"# USER.md - About Your Human
+
+_Learn about the person you're helping. Update this as you go._
+
+- **Name:** {}
+- **What to call them:** {}
+- **Pronouns:** _(optional)_
+- **Timezone:** {}
+- **Notes:**
+
+## Context
+
+_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_
+
+---
+
+The more you know, the better you can help. But remember — you're learning about a person, not building a dossier. Respect the difference.
+"#,
+        existing_user_name.unwrap_or_else(|| "峰哥".to_string()),
+        identity.user_name,
+        identity.timezone
+    );
+
+    std::fs::write(&user_md_path, user_content)
+        .map_err(|e| format!("写入 USER.md 失败: {}", e))?;
+
+    info!("[用户身份] ✓ USER.md 保存成功");
+    Ok("用户身份配置已保存".to_string())
 }

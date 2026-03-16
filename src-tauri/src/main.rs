@@ -57,6 +57,9 @@ fn main() {
             // 飞书插件管理
             config::check_feishu_plugin,
             config::install_feishu_plugin,
+            // 用户身份配置
+            config::get_user_identity,
+            config::save_user_identity,
             // 文档
             docs::get_feishu_setup_doc,
             // 诊断测试

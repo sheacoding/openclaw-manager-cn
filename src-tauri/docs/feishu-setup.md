@@ -270,6 +270,7 @@ curl -X GET \
 
 - [飞书开放平台文档](https://open.feishu.cn/document)
 - [飞书机器人开发指南](https://open.feishu.cn/document/home/develop-a-bot-in-5-minutes/create-an-app)
+- [OpenClaw 飞书插件官方文档](https://bytedance.larkoffice.com/docx/MFK7dDFLFoVlOGxWCv5cTXKmnMh)
 - [OpenClaw 官方文档](https://docs.openclaw.ai)
 
 ---
