@@ -3,6 +3,7 @@ import { PageType } from '../../App';
 import { RefreshCw, ExternalLink, Loader2 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-shell';
 import { invoke } from '@tauri-apps/api/core';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 
 interface HeaderProps {
   currentPage: PageType;
@@ -25,39 +26,18 @@ export function Header({ currentPage }: HeaderProps) {
     setOpening(true);
 
     try {
-      // 步骤 1: 获取带 token 的 Dashboard URL
-      console.log('[Dashboard] 正在获取 Dashboard URL...');
+      // 获取 token 并复制到剪贴板（双保险）
+      const token = await invoke<string>('get_or_create_gateway_token');
+      await writeText(token);
+
+      // 获取完整 URL（格式：http://127.0.0.1:18789/#token=xxx）
       const url = await invoke<string>('get_dashboard_url');
-      console.log('[Dashboard] ✓ 获取成功:', url.substring(0, 60) + '...');
+      await open(url);
 
-      // 步骤 2: 尝试使用 Tauri open API 打开
-      try {
-        await open(url);
-        console.log('[Dashboard] ✓ 使用 Tauri open() 打开成功');
-      } catch (openError) {
-        // 如果 Tauri open 失败，使用 window.open（仍然带 token）
-        console.warn('[Dashboard] Tauri open() 失败，使用 window.open:', openError);
-        window.open(url, '_blank');
-        console.log('[Dashboard] ✓ 使用 window.open() 打开成功');
-      }
+      alert('Token 已复制到剪贴板！\n如需手动输入，请粘贴使用。');
     } catch (e) {
-      // 如果获取 URL 失败，尝试手动构建 URL
-      console.error('[Dashboard] ✗ 获取 URL 失败:', e);
-
-      try {
-        // 尝试从配置文件读取 token
-        console.log('[Dashboard] 尝试手动构建 URL...');
-        const token = await invoke<string>('get_or_create_gateway_token');
-        const manualUrl = `http://localhost:18789?token=${token}`;
-        console.log('[Dashboard] ✓ 手动构建成功:', manualUrl.substring(0, 60) + '...');
-        window.open(manualUrl, '_blank');
-      } catch (tokenError) {
-        // 最后的降级方案：打开不带 token 的 URL，让用户手动输入
-        console.error('[Dashboard] ✗ 所有方案失败，使用最终降级方案:', tokenError);
-        const fallbackUrl = 'http://localhost:18789';
-        window.open(fallbackUrl, '_blank');
-        alert('无法自动获取 Token，请在 Dashboard 页面手动输入 Token。\n\n可以在设置页面查看 Token。');
-      }
+      console.error('打开仪表盘失败:', e);
+      alert(`打开仪表盘失败: ${e}`);
     } finally {
       setOpening(false);
     }

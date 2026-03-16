@@ -1,4 +1,8 @@
-import { Play, Square, RotateCcw, Stethoscope } from 'lucide-react';
+import { useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-shell';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { Play, Square, RotateCcw, Stethoscope, LayoutDashboard } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ServiceStatus {
@@ -23,12 +27,36 @@ export function QuickActions({
   onRestart,
 }: QuickActionsProps) {
   const isRunning = status?.running || false;
+  const [openingDashboard, setOpeningDashboard] = useState(false);
+
+  const handleOpenDashboard = async () => {
+    setOpeningDashboard(true);
+    try {
+      // 获取 token 并复制到剪贴板（双保险）
+      const token = await invoke<string>('get_or_create_gateway_token');
+      await writeText(token);
+
+      // 获取完整 URL（格式：http://127.0.0.1:18789/#token=xxx）
+      const url = await invoke<string>('get_dashboard_url');
+
+      // 打开 dashboard
+      await open(url);
+
+      // 提示用户 token 已复制
+      alert('Token 已复制到剪贴板！\n如需手动输入，请粘贴使用。');
+    } catch (e) {
+      console.error('打开仪表盘失败:', e);
+      alert(`打开仪表盘失败: ${e}`);
+    } finally {
+      setOpeningDashboard(false);
+    }
+  };
 
   return (
     <div className="bg-dark-700 rounded-2xl p-6 border border-dark-500">
       <h3 className="text-lg font-semibold text-white mb-4">快捷操作</h3>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {/* 启动按钮 */}
         <button
           onClick={onStart}
@@ -127,6 +155,39 @@ export function QuickActions({
             <Stethoscope size={20} className="text-purple-400" />
           </div>
           <span className="text-sm font-medium text-gray-300">诊断</span>
+        </button>
+
+        {/* 仪表盘按钮 */}
+        <button
+          onClick={handleOpenDashboard}
+          disabled={openingDashboard || !isRunning}
+          className={clsx(
+            'flex flex-col items-center gap-3 p-4 rounded-xl transition-all',
+            'border border-dark-500',
+            !isRunning
+              ? 'bg-dark-600 opacity-50 cursor-not-allowed'
+              : 'bg-dark-600 hover:bg-cyan-500/20 hover:border-cyan-500/50'
+          )}
+        >
+          <div
+            className={clsx(
+              'w-12 h-12 rounded-full flex items-center justify-center',
+              !isRunning ? 'bg-dark-500' : 'bg-cyan-500/20'
+            )}
+          >
+            <LayoutDashboard
+              size={20}
+              className={!isRunning ? 'text-gray-500' : 'text-cyan-400'}
+            />
+          </div>
+          <span
+            className={clsx(
+              'text-sm font-medium',
+              !isRunning ? 'text-gray-500' : 'text-gray-300'
+            )}
+          >
+            仪表盘
+          </span>
         </button>
       </div>
     </div>
