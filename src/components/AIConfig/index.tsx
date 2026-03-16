@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { aiLogger } from '../../lib/logger';
+import { ProviderLogo } from './ProviderLogo';
 
 // ============ 类型定义 ============
 
@@ -273,7 +274,7 @@ function ProviderDialog({ officialProviders, onClose, onSave, editingProvider }:
             {isEditing ? <Settings2 size={20} className="text-claw-400" /> : <Plus size={20} className="text-claw-400" />}
             {isEditing 
               ? `编辑 Provider: ${editingProvider?.name}` 
-              : (step === 'select' ? '添加 AI Provider' : `配置 ${selectedOfficial?.name || '自定义 Provider'}`)}
+              : (step === 'select' ? '添加 AI 服务商' : `配置 ${selectedOfficial?.name || '自定义服务商'}`)}
           </h2>
           <button onClick={onClose} className="text-gray-500 hover:text-white">
             ✕
@@ -301,7 +302,7 @@ function ProviderDialog({ officialProviders, onClose, onSave, editingProvider }:
                         onClick={() => handleSelectOfficial(provider)}
                         className="flex items-center gap-3 p-4 rounded-xl bg-dark-700 border border-dark-500 hover:border-claw-500/50 hover:bg-dark-600 transition-all text-left group"
                 >
-                  <span className="text-2xl">{provider.icon}</span>
+                  <ProviderLogo providerId={provider.id} size={28} />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-white truncate">{provider.name}</p>
                           <p className="text-xs text-gray-500 truncate">
@@ -686,7 +687,7 @@ function ProviderCard({ provider, officialProviders, onSetPrimary, onRefresh, on
         className="flex items-center gap-3 p-4 cursor-pointer hover:bg-dark-600/50 transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <span className="text-xl">{officialInfo?.icon || '🔌'}</span>
+        <ProviderLogo providerId={officialInfo?.id || provider.name} size={24} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-medium text-white">{provider.name}</h3>
@@ -964,7 +965,7 @@ export function AIConfig() {
               className="btn-primary flex items-center gap-2"
             >
               <Plus size={16} />
-              添加 Provider
+              添加 AI 服务商
             </button>
           </div>
 
@@ -1069,7 +1070,7 @@ export function AIConfig() {
                 onClick={() => setShowAddDialog(true)}
                 className="btn-primary"
               >
-                添加第一个 Provider
+                添加第一个 AI 服务商
               </button>
             </div>
           ) : (
