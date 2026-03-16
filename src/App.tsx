@@ -102,13 +102,18 @@ function App() {
       const result = await invoke<UpdateResult>('update_openclaw');
       setUpdateResult(result);
       if (result.success) {
-        // 更新成功后重新检查环境
+        // 更新成功后重新检查环境和版本
         await checkEnvironment();
-        // 3秒后关闭提示
-        setTimeout(() => {
-          setShowUpdateBanner(false);
-          setUpdateResult(null);
-        }, 3000);
+        // 重新检查版本，确保 updateInfo 是最新的
+        const newInfo = await invoke<UpdateInfo>('check_openclaw_update');
+        setUpdateInfo(newInfo);
+        // 如果确实没有更新了，3秒后关闭提示
+        if (!newInfo.update_available) {
+          setTimeout(() => {
+            setShowUpdateBanner(false);
+            setUpdateResult(null);
+          }, 3000);
+        }
       }
     } catch (e) {
       setUpdateResult({

@@ -265,7 +265,23 @@ fn get_openclaw_version() -> Option<String> {
     // 使用 run_openclaw 统一处理各平台
     shell::run_openclaw(&["--version"])
         .ok()
-        .map(|v| v.trim().to_string())
+        .and_then(|output| {
+            // 输出格式: "OpenClaw 2026.3.13 (61d171a)"
+            // 提取纯版本号: "2026.3.13"
+            let trimmed = output.trim();
+
+            // 尝试匹配 "OpenClaw X.Y.Z" 格式
+            if let Some(version_part) = trimmed.split_whitespace().nth(1) {
+                // 去掉可能的括号后缀 "(commit)"
+                let clean_version = version_part.split('(').next().unwrap_or(version_part).trim();
+                if !clean_version.is_empty() {
+                    return Some(clean_version.to_string());
+                }
+            }
+
+            // 回退：直接返回原始输出
+            Some(trimmed.to_string())
+        })
 }
 
 /// 检查 Node.js 版本是否 >= 22
@@ -1057,13 +1073,28 @@ fn get_latest_openclaw_version() -> Option<String> {
 }
 
 /// 比较版本号，返回是否有更新可用
-/// current: 当前版本 (如 "1.0.0" 或 "v1.0.0")
+/// current: 当前版本 (如 "1.0.0" 或 "v1.0.0" 或 "OpenClaw 2026.3.13")
 /// latest: 最新版本 (如 "1.0.1")
 fn compare_versions(current: &str, latest: &str) -> bool {
-    // 移除可能的 'v' 前缀和空白
-    let current = current.trim().trim_start_matches('v');
-    let latest = latest.trim().trim_start_matches('v');
-    
+    // 提取纯版本号（去除前缀、空白、括号后缀）
+    let extract_version = |s: &str| -> String {
+        s.trim()
+            .trim_start_matches("OpenClaw")
+            .trim_start_matches('v')
+            .trim()
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .split('(')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_string()
+    };
+
+    let current = extract_version(current);
+    let latest = extract_version(latest);
+
     // 分割版本号
     let current_parts: Vec<u32> = current
         .split('.')
@@ -1073,7 +1104,7 @@ fn compare_versions(current: &str, latest: &str) -> bool {
         .split('.')
         .filter_map(|s| s.parse().ok())
         .collect();
-    
+
     // 比较每个部分
     for i in 0..3 {
         let c = current_parts.get(i).unwrap_or(&0);
@@ -1084,7 +1115,7 @@ fn compare_versions(current: &str, latest: &str) -> bool {
             return false;
         }
     }
-    
+
     false
 }
 
