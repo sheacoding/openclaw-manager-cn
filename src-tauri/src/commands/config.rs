@@ -1,13 +1,13 @@
 use crate::models::{
     AIConfigOverview, ChannelConfig, ConfiguredModel, ConfiguredProvider,
-    ModelConfig, ModelCostConfig, OfficialProvider, OpenClawConfig,
-    ProviderConfig, SuggestedModel,
+    ModelConfig, OfficialProvider, SuggestedModel,
 };
 use crate::utils::{file, platform, shell};
 use log::{debug, error, info, warn};
 use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use tauri::command;
 
 /// 获取 openclaw.json 配置
@@ -170,7 +170,7 @@ pub async fn get_dashboard_url() -> Result<String, String> {
     info!("[Dashboard URL] 获取 Dashboard URL...");
     
     let token = get_or_create_gateway_token().await?;
-    let url = format!("http://localhost:18789?token={}", token);
+    let url = format!("http://127.0.0.1:18789/#token={}", token);
     
     info!("[Dashboard URL] ✓ URL: {}...", &url[..50.min(url.len())]);
     Ok(url)
@@ -194,17 +194,25 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
             docs_url: Some("https://docs.openclaw.ai/providers/anthropic".to_string()),
             suggested_models: vec![
                 SuggestedModel {
-                    id: "claude-opus-4-5-20251101".to_string(),
-                    name: "Claude Opus 4.5".to_string(),
-                    description: Some("最强大版本，适合复杂任务".to_string()),
+                    id: "claude-opus-4-6".to_string(),
+                    name: "Claude Opus 4.6".to_string(),
+                    description: Some("最强推理模型".to_string()),
                     context_window: Some(200000),
-                    max_tokens: Some(8192),
+                    max_tokens: Some(16384),
                     recommended: true,
                 },
                 SuggestedModel {
-                    id: "claude-sonnet-4-5-20250929".to_string(),
-                    name: "Claude Sonnet 4.5".to_string(),
+                    id: "claude-sonnet-4-6".to_string(),
+                    name: "Claude Sonnet 4.6".to_string(),
                     description: Some("平衡版本，性价比高".to_string()),
+                    context_window: Some(200000),
+                    max_tokens: Some(16384),
+                    recommended: false,
+                },
+                SuggestedModel {
+                    id: "claude-haiku-4-5-20251001".to_string(),
+                    name: "Claude Haiku 4.5".to_string(),
+                    description: Some("快速经济版".to_string()),
                     context_window: Some(200000),
                     max_tokens: Some(8192),
                     recommended: false,
@@ -221,19 +229,27 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
             docs_url: Some("https://docs.openclaw.ai/providers/openai".to_string()),
             suggested_models: vec![
                 SuggestedModel {
-                    id: "gpt-4o".to_string(),
-                    name: "GPT-4o".to_string(),
-                    description: Some("最新多模态模型".to_string()),
-                    context_window: Some(128000),
-                    max_tokens: Some(4096),
+                    id: "gpt-5.4".to_string(),
+                    name: "GPT-5.4".to_string(),
+                    description: Some("最新旗舰推理模型，100万上下文".to_string()),
+                    context_window: Some(1000000),
+                    max_tokens: Some(32768),
                     recommended: true,
                 },
                 SuggestedModel {
-                    id: "gpt-4o-mini".to_string(),
-                    name: "GPT-4o Mini".to_string(),
+                    id: "gpt-5.3".to_string(),
+                    name: "GPT-5.3 Instant".to_string(),
+                    description: Some("日常对话默认模型".to_string()),
+                    context_window: Some(200000),
+                    max_tokens: Some(16384),
+                    recommended: false,
+                },
+                SuggestedModel {
+                    id: "gpt-5-mini".to_string(),
+                    name: "GPT-5 Mini".to_string(),
                     description: Some("快速经济版".to_string()),
                     context_window: Some(128000),
-                    max_tokens: Some(4096),
+                    max_tokens: Some(8192),
                     recommended: false,
                 },
             ],
@@ -250,8 +266,8 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
                 SuggestedModel {
                     id: "kimi-k2.5".to_string(),
                     name: "Kimi K2.5".to_string(),
-                    description: Some("最新旗舰模型".to_string()),
-                    context_window: Some(200000),
+                    description: Some("最新多模态 Agent 模型，256K 上下文".to_string()),
+                    context_window: Some(256000),
                     max_tokens: Some(8192),
                     recommended: true,
                 },
@@ -275,18 +291,26 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
             docs_url: Some("https://docs.openclaw.ai/providers/qwen".to_string()),
             suggested_models: vec![
                 SuggestedModel {
-                    id: "qwen-max".to_string(),
-                    name: "Qwen Max".to_string(),
-                    description: Some("最强大版本".to_string()),
-                    context_window: Some(128000),
+                    id: "qwen3.5-flash".to_string(),
+                    name: "Qwen3.5 Flash".to_string(),
+                    description: Some("最新旗舰，100万上下文".to_string()),
+                    context_window: Some(1000000),
                     max_tokens: Some(8192),
                     recommended: true,
                 },
                 SuggestedModel {
-                    id: "qwen-plus".to_string(),
-                    name: "Qwen Plus".to_string(),
-                    description: Some("平衡版本".to_string()),
-                    context_window: Some(128000),
+                    id: "qwen3-max-thinking".to_string(),
+                    name: "Qwen3 Max Thinking".to_string(),
+                    description: Some("万亿参数推理模型".to_string()),
+                    context_window: Some(131072),
+                    max_tokens: Some(8192),
+                    recommended: false,
+                },
+                SuggestedModel {
+                    id: "qwen-max".to_string(),
+                    name: "Qwen Max".to_string(),
+                    description: Some("通用旗舰模型".to_string()),
+                    context_window: Some(131072),
                     max_tokens: Some(8192),
                     recommended: false,
                 },
@@ -303,7 +327,7 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
             suggested_models: vec![
                 SuggestedModel {
                     id: "deepseek-chat".to_string(),
-                    name: "DeepSeek V3".to_string(),
+                    name: "DeepSeek V3.2".to_string(),
                     description: Some("最新对话模型".to_string()),
                     context_window: Some(128000),
                     max_tokens: Some(8192),
@@ -314,7 +338,7 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
                     name: "DeepSeek R1".to_string(),
                     description: Some("推理增强模型".to_string()),
                     context_window: Some(128000),
-                    max_tokens: Some(8192),
+                    max_tokens: Some(64000),
                     recommended: false,
                 },
             ],
@@ -329,12 +353,28 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
             docs_url: Some("https://docs.openclaw.ai/providers/glm".to_string()),
             suggested_models: vec![
                 SuggestedModel {
-                    id: "glm-4".to_string(),
-                    name: "GLM-4".to_string(),
-                    description: Some("最新旗舰模型".to_string()),
+                    id: "glm-5-turbo".to_string(),
+                    name: "GLM-5 Turbo".to_string(),
+                    description: Some("最新旗舰，Agent 场景优化".to_string()),
                     context_window: Some(128000),
                     max_tokens: Some(8192),
                     recommended: true,
+                },
+                SuggestedModel {
+                    id: "glm-5".to_string(),
+                    name: "GLM-5".to_string(),
+                    description: Some("深度推理模型".to_string()),
+                    context_window: Some(128000),
+                    max_tokens: Some(8192),
+                    recommended: false,
+                },
+                SuggestedModel {
+                    id: "glm-4.7-flash".to_string(),
+                    name: "GLM-4.7 Flash".to_string(),
+                    description: Some("免费高效编程模型".to_string()),
+                    context_window: Some(128000),
+                    max_tokens: Some(8192),
+                    recommended: false,
                 },
             ],
         },
@@ -342,18 +382,26 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
             id: "minimax".to_string(),
             name: "MiniMax".to_string(),
             icon: "🟡".to_string(),
-            default_base_url: Some("https://api.minimax.io/anthropic".to_string()),
+            default_base_url: Some("https://api.minimaxi.com/anthropic".to_string()),
             api_type: "anthropic-messages".to_string(),
             requires_api_key: true,
             docs_url: Some("https://docs.openclaw.ai/providers/minimax".to_string()),
             suggested_models: vec![
                 SuggestedModel {
-                    id: "minimax-m2.1".to_string(),
-                    name: "MiniMax M2.1".to_string(),
-                    description: Some("最新模型".to_string()),
+                    id: "MiniMax-M2.5".to_string(),
+                    name: "MiniMax M2.5".to_string(),
+                    description: Some("最新旗舰模型".to_string()),
                     context_window: Some(200000),
                     max_tokens: Some(8192),
                     recommended: true,
+                },
+                SuggestedModel {
+                    id: "minimax-m2.1".to_string(),
+                    name: "MiniMax M2.1".to_string(),
+                    description: Some("上一代模型".to_string()),
+                    context_window: Some(200000),
+                    max_tokens: Some(8192),
+                    recommended: false,
                 },
             ],
         },
@@ -367,12 +415,20 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
             docs_url: Some("https://docs.openclaw.ai/providers/venice".to_string()),
             suggested_models: vec![
                 SuggestedModel {
+                    id: "llama-4-maverick-17b-128e".to_string(),
+                    name: "Llama 4 Maverick".to_string(),
+                    description: Some("Meta 最新 MoE 模型".to_string()),
+                    context_window: Some(1048576),
+                    max_tokens: Some(8192),
+                    recommended: true,
+                },
+                SuggestedModel {
                     id: "llama-3.3-70b".to_string(),
                     name: "Llama 3.3 70B".to_string(),
                     description: Some("隐私优先推理".to_string()),
                     context_window: Some(128000),
                     max_tokens: Some(8192),
-                    recommended: true,
+                    recommended: false,
                 },
             ],
         },
@@ -386,12 +442,20 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
             docs_url: Some("https://docs.openclaw.ai/providers/openrouter".to_string()),
             suggested_models: vec![
                 SuggestedModel {
-                    id: "anthropic/claude-opus-4-5".to_string(),
-                    name: "Claude Opus 4.5".to_string(),
+                    id: "anthropic/claude-opus-4-6".to_string(),
+                    name: "Claude Opus 4.6".to_string(),
                     description: Some("通过 OpenRouter 访问".to_string()),
                     context_window: Some(200000),
-                    max_tokens: Some(8192),
+                    max_tokens: Some(16384),
                     recommended: true,
+                },
+                SuggestedModel {
+                    id: "openai/gpt-5.4".to_string(),
+                    name: "GPT-5.4".to_string(),
+                    description: Some("通过 OpenRouter 访问".to_string()),
+                    context_window: Some(1000000),
+                    max_tokens: Some(32768),
+                    recommended: false,
                 },
             ],
         },
@@ -405,12 +469,28 @@ pub async fn get_official_providers() -> Result<Vec<OfficialProvider>, String> {
             docs_url: Some("https://docs.openclaw.ai/providers/ollama".to_string()),
             suggested_models: vec![
                 SuggestedModel {
-                    id: "llama3".to_string(),
-                    name: "Llama 3".to_string(),
-                    description: Some("本地运行".to_string()),
-                    context_window: Some(8192),
-                    max_tokens: Some(4096),
+                    id: "qwen3:32b".to_string(),
+                    name: "Qwen3 32B".to_string(),
+                    description: Some("本地热门，推理能力强".to_string()),
+                    context_window: Some(131072),
+                    max_tokens: Some(8192),
                     recommended: true,
+                },
+                SuggestedModel {
+                    id: "llama3.3:70b".to_string(),
+                    name: "Llama 3.3 70B".to_string(),
+                    description: Some("本地运行，综合能力强".to_string()),
+                    context_window: Some(131072),
+                    max_tokens: Some(4096),
+                    recommended: false,
+                },
+                SuggestedModel {
+                    id: "deepseek-r1:32b".to_string(),
+                    name: "DeepSeek R1 32B".to_string(),
+                    description: Some("本地推理模型".to_string()),
+                    context_window: Some(128000),
+                    max_tokens: Some(8192),
+                    recommended: false,
                 },
             ],
         },
@@ -963,6 +1043,36 @@ pub async fn save_channel_config(channel: ChannelConfig) -> Result<String, Strin
             channel_obj[key] = value.clone();
         }
     }
+
+    // 飞书特殊处理：确保 allowFrom 是数组格式，dmPolicy 有默认值
+    if channel.id == "feishu" {
+        // 如果没有设置 dmPolicy，默认为 "open"
+        if channel_obj.get("dmPolicy").is_none() {
+            channel_obj["dmPolicy"] = json!("open");
+            info!("[保存渠道配置] 飞书未设置 dmPolicy，默认使用 'open'");
+        }
+
+        // 确保 allowFrom 是数组格式
+        let allow_from_value = channel_obj.get("allowFrom").cloned();
+        if let Some(allow_from) = allow_from_value {
+            // 如果是字符串，转换为数组
+            if allow_from.is_string() {
+                let allow_str = allow_from.as_str().unwrap_or("*");
+                channel_obj["allowFrom"] = json!([allow_str]);
+                info!("[保存渠道配置] 飞书 allowFrom 从字符串转换为数组: [{}]", allow_str);
+            }
+        } else {
+            // 如果没有设置 allowFrom，默认为 ["*"]
+            channel_obj["allowFrom"] = json!(["*"]);
+            info!("[保存渠道配置] 飞书未设置 allowFrom，默认使用 ['*']");
+        }
+
+        // 如果 dmPolicy 是 "open"，确保 allowFrom 是 ["*"]
+        if channel_obj.get("dmPolicy").and_then(|v| v.as_str()) == Some("open") {
+            channel_obj["allowFrom"] = json!(["*"]);
+            info!("[保存渠道配置] 飞书使用 'open' 模式，设置 allowFrom 为 ['*']");
+        }
+    }
     
     // 更新 channels 配置
     config["channels"][&channel.id] = channel_obj;
@@ -1115,22 +1225,21 @@ pub async fn check_feishu_plugin() -> Result<FeishuPluginStatus, String> {
 /// 安装飞书插件
 #[command]
 pub async fn install_feishu_plugin() -> Result<String, String> {
-    info!("[飞书插件] 开始安装飞书插件...");
-    
+    info!("[飞书插件] 开始安装飞书官方插件...");
+
     // 先检查是否已安装
     let status = check_feishu_plugin().await?;
     if status.installed {
         info!("[飞书插件] 飞书插件已安装，跳过");
         return Ok(format!("飞书插件已安装: {}", status.plugin_name.unwrap_or_default()));
     }
-    
-    // 安装飞书插件
-    // 注意：使用 @m1heng-clawd/feishu 包名
-    info!("[飞书插件] 执行 openclaw plugins install @m1heng-clawd/feishu ...");
-    match shell::run_openclaw(&["plugins", "install", "@m1heng-clawd/feishu"]) {
+
+    // 使用官方安装命令（通过 npx 执行，使用淘宝镜像加速）
+    info!("[飞书插件] 执行 npx -y @larksuite/openclaw-lark-tools update ...");
+    match shell::run_command_output("npx", &["-y", "--registry=https://registry.npmmirror.com", "@larksuite/openclaw-lark-tools", "update"]) {
         Ok(output) => {
             info!("[飞书插件] 安装输出: {}", output);
-            
+
             // 验证安装结果
             let verify_status = check_feishu_plugin().await?;
             if verify_status.installed {
@@ -1143,7 +1252,184 @@ pub async fn install_feishu_plugin() -> Result<String, String> {
         }
         Err(e) => {
             error!("[飞书插件] ✗ 安装失败: {}", e);
-            Err(format!("安装飞书插件失败: {}\n\n请手动执行: openclaw plugins install @m1heng-clawd/feishu", e))
+            Err(format!("安装飞书插件失败: {}\n\n请手动执行: npx -y @larksuite/openclaw-lark-tools update", e))
         }
     }
+}
+
+// ============ USER.md 用户身份配置 ============
+
+/// 用户身份配置结构
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserIdentity {
+    pub bot_name: String,      // AI 助手名称（来自 IDENTITY.md）
+    pub user_name: String,     // 用户称呼（来自 USER.md）
+    pub timezone: String,      // 时区（来自 USER.md）
+}
+
+/// 获取 USER.md 文件路径
+fn get_user_md_path() -> PathBuf {
+    let config_dir = platform::get_config_dir();
+    PathBuf::from(config_dir).join("workspace").join("USER.md")
+}
+
+/// 获取 IDENTITY.md 文件路径
+fn get_identity_md_path() -> PathBuf {
+    let config_dir = platform::get_config_dir();
+    PathBuf::from(config_dir).join("workspace").join("IDENTITY.md")
+}
+
+/// 从 Markdown 中提取字段值
+fn extract_field(content: &str, field_name: &str) -> Option<String> {
+    let lines: Vec<&str> = content.lines().collect();
+
+    for (i, line) in lines.iter().enumerate() {
+        if line.contains(field_name) {
+            // 提取 "**Name:** 峰哥" 中的 "峰哥"
+            let parts: Vec<&str> = line.split(field_name).collect();
+            if parts.len() > 1 {
+                let value = parts[1].trim();
+                // 如果当前行有值且不是占位符，返回
+                if !value.is_empty() && value != "_(optional)_" && !value.starts_with("_(") {
+                    return Some(value.to_string());
+                }
+                // 如果当前行为空，检查下一行（处理换行格式）
+                if value.is_empty() && i + 1 < lines.len() {
+                    let next_line = lines[i + 1].trim();
+                    if !next_line.is_empty() && !next_line.starts_with("_") && !next_line.starts_with("-") {
+                        return Some(next_line.to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// 读取 USER.md 和 IDENTITY.md 配置
+#[command]
+pub async fn get_user_identity() -> Result<UserIdentity, String> {
+    info!("[用户身份] 读取 USER.md 和 IDENTITY.md 配置...");
+
+    let user_md_path = get_user_md_path();
+    let identity_md_path = get_identity_md_path();
+
+    // 读取 IDENTITY.md 获取 AI 助手名称
+    let bot_name = if identity_md_path.exists() {
+        let content = std::fs::read_to_string(&identity_md_path)
+            .map_err(|e| format!("读取 IDENTITY.md 失败: {}", e))?;
+        extract_field(&content, "**Name:**").unwrap_or_else(|| "Clawd".to_string())
+    } else {
+        info!("[用户身份] IDENTITY.md 不存在，使用默认 AI 名称");
+        "Clawd".to_string()
+    };
+
+    // 读取 USER.md 获取用户称呼和时区
+    let (user_name, timezone) = if user_md_path.exists() {
+        let content = std::fs::read_to_string(&user_md_path)
+            .map_err(|e| format!("读取 USER.md 失败: {}", e))?;
+
+        let call_them = extract_field(&content, "**What to call them:**");
+        let tz = extract_field(&content, "**Timezone:**");
+
+        (
+            call_them.unwrap_or_else(|| "主人".to_string()),
+            tz.unwrap_or_else(|| "Asia/Shanghai".to_string())
+        )
+    } else {
+        info!("[用户身份] USER.md 不存在，使用默认值");
+        ("主人".to_string(), "Asia/Shanghai".to_string())
+    };
+
+    info!("[用户身份] ✓ 读取成功 - Bot: {}, User: {}, TZ: {}", bot_name, user_name, timezone);
+
+    Ok(UserIdentity {
+        bot_name,
+        user_name,
+        timezone,
+    })
+}
+
+/// 保存 USER.md 和 IDENTITY.md 配置
+#[command]
+pub async fn save_user_identity(identity: UserIdentity) -> Result<String, String> {
+    info!("[用户身份] 保存配置...");
+    debug!("[用户身份] Bot: {}, User: {}, TZ: {}", identity.bot_name, identity.user_name, identity.timezone);
+
+    let user_md_path = get_user_md_path();
+    let identity_md_path = get_identity_md_path();
+
+    // 确保 workspace 目录存在
+    if let Some(parent) = user_md_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("创建 workspace 目录失败: {}", e))?;
+    }
+
+    // 保存 IDENTITY.md（AI 助手名称）
+    let identity_content = format!(
+        r#"# IDENTITY.md - Who Am I?
+
+_Fill this in during your first conversation. Make it yours._
+
+- **Name:** {}
+- **Creature:** _(AI? robot? familiar? ghost in the machine? something weirder?)_
+- **Vibe:** _(how do you come across? sharp? warm? chaotic? calm?)_
+- **Emoji:** _(your signature — pick one that feels right)_
+- **Avatar:** _(workspace-relative path, http(s) URL, or data URI)_
+
+---
+
+This isn't just metadata. It's the start of figuring out who you are.
+
+Notes:
+
+- Save this file at the workspace root as `IDENTITY.md`.
+- For avatars, use a workspace-relative path like `avatars/openclaw.png`.
+"#,
+        identity.bot_name
+    );
+
+    std::fs::write(&identity_md_path, identity_content)
+        .map_err(|e| format!("写入 IDENTITY.md 失败: {}", e))?;
+
+    info!("[用户身份] ✓ IDENTITY.md 保存成功");
+
+    // 保存 USER.md（用户称呼和时区）
+    // 先读取现有内容，保留 Name 字段
+    let existing_user_name = if user_md_path.exists() {
+        let content = std::fs::read_to_string(&user_md_path).ok();
+        content.and_then(|c| extract_field(&c, "**Name:**"))
+    } else {
+        None
+    };
+
+    let user_content = format!(
+        r#"# USER.md - About Your Human
+
+_Learn about the person you're helping. Update this as you go._
+
+- **Name:** {}
+- **What to call them:** {}
+- **Pronouns:** _(optional)_
+- **Timezone:** {}
+- **Notes:**
+
+## Context
+
+_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_
+
+---
+
+The more you know, the better you can help. But remember — you're learning about a person, not building a dossier. Respect the difference.
+"#,
+        existing_user_name.unwrap_or_else(|| "峰哥".to_string()),
+        identity.user_name,
+        identity.timezone
+    );
+
+    std::fs::write(&user_md_path, user_content)
+        .map_err(|e| format!("写入 USER.md 失败: {}", e))?;
+
+    info!("[用户身份] ✓ USER.md 保存成功");
+    Ok("用户身份配置已保存".to_string())
 }

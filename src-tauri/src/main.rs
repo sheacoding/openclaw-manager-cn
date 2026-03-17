@@ -8,7 +8,7 @@ mod commands;
 mod models;
 mod utils;
 
-use commands::{config, diagnostics, installer, process, service};
+use commands::{config, diagnostics, docs, installer, process, service};
 
 fn main() {
     // 初始化日志 - 默认显示 info 级别日志
@@ -23,6 +23,7 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
             // 服务管理
             service::get_service_status,
@@ -57,6 +58,11 @@ fn main() {
             // 飞书插件管理
             config::check_feishu_plugin,
             config::install_feishu_plugin,
+            // 用户身份配置
+            config::get_user_identity,
+            config::save_user_identity,
+            // 文档
+            docs::get_feishu_setup_doc,
             // 诊断测试
             diagnostics::run_doctor,
             diagnostics::test_ai_connection,

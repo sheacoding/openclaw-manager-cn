@@ -3,6 +3,7 @@ import { PageType } from '../../App';
 import { RefreshCw, ExternalLink, Loader2 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-shell';
 import { invoke } from '@tauri-apps/api/core';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 
 interface HeaderProps {
   currentPage: PageType;
@@ -23,14 +24,20 @@ export function Header({ currentPage }: HeaderProps) {
 
   const handleOpenDashboard = async () => {
     setOpening(true);
+
     try {
-      // 获取带 token 的 Dashboard URL（如果没有 token 会自动生成）
+      // 获取 token 并复制到剪贴板（双保险）
+      const token = await invoke<string>('get_or_create_gateway_token');
+      await writeText(token);
+
+      // 获取完整 URL（格式：http://127.0.0.1:18789/#token=xxx）
       const url = await invoke<string>('get_dashboard_url');
       await open(url);
+
+      alert('Token 已复制到剪贴板！\n如需手动输入，请粘贴使用。');
     } catch (e) {
-      console.error('打开 Dashboard 失败:', e);
-      // 降级方案：使用 window.open（不带 token）
-      window.open('http://localhost:18789', '_blank');
+      console.error('打开仪表盘失败:', e);
+      alert(`打开仪表盘失败: ${e}`);
     } finally {
       setOpening(false);
     }

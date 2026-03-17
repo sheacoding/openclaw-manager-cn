@@ -2,7 +2,7 @@ use crate::models::ServiceStatus;
 use crate::utils::shell;
 use tauri::command;
 use std::process::Command;
-use log::{info, debug};
+use log::{info, debug, warn, error};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -78,14 +78,14 @@ pub async fn get_service_status() -> Result<ServiceStatus, String> {
 #[command]
 pub async fn start_service() -> Result<String, String> {
     info!("[服务] 启动服务...");
-    
+
     // 检查是否已经运行
     let status = get_service_status().await?;
     if status.running {
         info!("[服务] 服务已在运行中");
         return Err("服务已在运行中".to_string());
     }
-    
+
     // 检查 openclaw 命令是否存在
     let openclaw_path = shell::get_openclaw_path();
     if openclaw_path.is_none() {
@@ -93,27 +93,65 @@ pub async fn start_service() -> Result<String, String> {
         return Err("找不到 openclaw 命令，请先通过 npm install -g openclaw 安装".to_string());
     }
     info!("[服务] openclaw 路径: {:?}", openclaw_path);
-    
-    // 直接后台启动 gateway（不等待 doctor，避免阻塞）
-    info!("[服务] 后台启动 gateway...");
-    shell::spawn_openclaw_gateway()
-        .map_err(|e| format!("启动服务失败: {}", e))?;
-    
-    // 轮询等待端口开始监听（最多 15 秒）
-    info!("[服务] 等待端口 {} 开始监听...", SERVICE_PORT);
-    for i in 1..=15 {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-        if let Some(pid) = check_port_listening(SERVICE_PORT) {
-            info!("[服务] ✓ 启动成功 ({}秒), PID: {}", i, pid);
-            return Ok(format!("服务已启动，PID: {}", pid));
+
+    // 步骤 1: 先安装 LaunchAgent（如果未安装）
+    info!("[服务] 执行: openclaw gateway install");
+    match shell::run_openclaw(&["gateway", "install"]) {
+        Ok(output) => {
+            info!("[服务] Gateway install 成功");
+            debug!("[服务] 输出: {}", output);
         }
-        if i % 3 == 0 {
-            debug!("[服务] 等待中... ({}秒)", i);
+        Err(e) => {
+            warn!("[服务] Gateway install 失败（可能已安装）: {}", e);
         }
     }
-    
-    info!("[服务] 等待超时，端口仍未监听");
-    Err("服务启动超时（15秒），请检查 openclaw 日志".to_string())
+
+    // 步骤 2: 启动 Gateway
+    info!("[服务] 执行: openclaw gateway start");
+    match shell::run_openclaw(&["gateway", "start"]) {
+        Ok(output) => {
+            info!("[服务] Gateway 启动命令执行成功");
+            debug!("[服务] 输出: {}", output);
+
+            // 轮询等待端口开始监听（最多 15 秒）
+            info!("[服务] 等待端口 {} 开始监听...", SERVICE_PORT);
+            for i in 1..=15 {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                if let Some(pid) = check_port_listening(SERVICE_PORT) {
+                    info!("[服务] ✓ 启动成功 ({}秒), PID: {}", i, pid);
+                    return Ok(format!("服务已启动，PID: {}", pid));
+                }
+                if i % 3 == 0 {
+                    debug!("[服务] 等待中... ({}秒)", i);
+                }
+            }
+
+            warn!("[服务] 超时：15 秒后端口仍未监听");
+            Err("启动超时，请检查日志".to_string())
+        }
+        Err(e) => {
+            error!("[服务] openclaw gateway start 失败: {}", e);
+
+            // 降级方案：直接后台启动（不使用 LaunchAgent）
+            warn!("[服务] 使用降级方案：直接后台启动...");
+            shell::spawn_openclaw_gateway()
+                .map_err(|e| format!("启动服务失败: {}", e))?;
+
+            // 轮询等待端口开始监听
+            for i in 1..=15 {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                if let Some(pid) = check_port_listening(SERVICE_PORT) {
+                    info!("[服务] ✓ 启动成功 ({}秒), PID: {}", i, pid);
+                    return Ok(format!("服务已启动，PID: {}", pid));
+                }
+                if i % 3 == 0 {
+                    debug!("[服务] 等待中... ({}秒)", i);
+                }
+            }
+
+            Err("启动超时，请检查日志".to_string())
+        }
+    }
 }
 
 /// 获取监听指定端口的所有 PID
@@ -184,45 +222,88 @@ fn kill_process(pid: u32, force: bool) -> bool {
     }
 }
 
-/// 停止服务（通过杀死监听端口的进程）
+/// 停止服务（通过 OpenClaw CLI 停止 Gateway）
 #[command]
 pub async fn stop_service() -> Result<String, String> {
     info!("[服务] 停止服务...");
-    
-    let pids = get_pids_on_port(SERVICE_PORT);
-    if pids.is_empty() {
-        info!("[服务] 端口 {} 无进程监听，服务未运行", SERVICE_PORT);
-        return Ok("服务未在运行".to_string());
-    }
-    
-    info!("[服务] 发现 {} 个进程监听端口 {}: {:?}", pids.len(), SERVICE_PORT, pids);
-    
-    // 第一步：优雅终止 (SIGTERM)
-    for &pid in &pids {
-        kill_process(pid, false);
-    }
-    std::thread::sleep(std::time::Duration::from_secs(2));
-    
-    // 检查是否已停止
-    let remaining = get_pids_on_port(SERVICE_PORT);
-    if remaining.is_empty() {
-        info!("[服务] ✓ 已停止");
-        return Ok("服务已停止".to_string());
-    }
-    
-    // 第二步：强制终止 (SIGKILL)
-    info!("[服务] 仍有 {} 个进程存活，强制终止...", remaining.len());
-    for &pid in &remaining {
-        kill_process(pid, true);
-    }
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    
-    let still_running = get_pids_on_port(SERVICE_PORT);
-    if still_running.is_empty() {
-        info!("[服务] ✓ 已强制停止");
-        Ok("服务已停止".to_string())
-    } else {
-        Err(format!("无法停止服务，仍有进程: {:?}", still_running))
+
+    // 使用 OpenClaw CLI 停止 Gateway（会卸载 LaunchAgent）
+    info!("[服务] 执行: openclaw gateway stop");
+    match shell::run_openclaw(&["gateway", "stop"]) {
+        Ok(output) => {
+            info!("[服务] ✓ Gateway 已停止");
+            debug!("[服务] 输出: {}", output);
+
+            // 等待一下确保进程完全停止
+            std::thread::sleep(std::time::Duration::from_secs(2));
+
+            // 验证是否真的停止了
+            let remaining = get_pids_on_port(SERVICE_PORT);
+            if remaining.is_empty() {
+                info!("[服务] ✓ 验证成功，服务已完全停止");
+                Ok("服务已停止".to_string())
+            } else {
+                warn!("[服务] Gateway 命令执行成功，但仍有进程: {:?}", remaining);
+                // 强制杀死残留进程
+                for &pid in &remaining {
+                    kill_process(pid, true);
+                }
+                Ok("服务已停止（强制终止残留进程）".to_string())
+            }
+        }
+        Err(e) => {
+            warn!("[服务] openclaw gateway stop 失败: {}", e);
+
+            // 降级方案：手动杀进程（但这样会被 LaunchAgent 重启）
+            let pids = get_pids_on_port(SERVICE_PORT);
+            if pids.is_empty() {
+                info!("[服务] 端口 {} 无进程监听，服务未运行", SERVICE_PORT);
+                return Ok("服务未在运行".to_string());
+            }
+
+            info!("[服务] 发现 {} 个进程监听端口 {}: {:?}", pids.len(), SERVICE_PORT, pids);
+
+            // 尝试卸载 LaunchAgent（macOS）
+            #[cfg(target_os = "macos")]
+            {
+                info!("[服务] 尝试卸载 LaunchAgent...");
+                let home = dirs::home_dir().ok_or("无法获取用户目录")?;
+                let plist_path = home.join("Library/LaunchAgents/ai.openclaw.gateway.plist");
+
+                if plist_path.exists() {
+                    let unload_result = std::process::Command::new("launchctl")
+                        .args(["unload", plist_path.to_str().unwrap()])
+                        .output();
+
+                    match unload_result {
+                        Ok(output) if output.status.success() => {
+                            info!("[服务] ✓ LaunchAgent 已卸载");
+                        }
+                        _ => {
+                            warn!("[服务] 卸载 LaunchAgent 失败，服务可能会自动重启");
+                        }
+                    }
+                }
+            }
+
+            // 杀死进程
+            for &pid in &pids {
+                kill_process(pid, false);
+            }
+            std::thread::sleep(std::time::Duration::from_secs(2));
+
+            let remaining = get_pids_on_port(SERVICE_PORT);
+            if remaining.is_empty() {
+                info!("[服务] ✓ 已停止");
+                Ok("服务已停止".to_string())
+            } else {
+                // 强制终止
+                for &pid in &remaining {
+                    kill_process(pid, true);
+                }
+                Ok("服务已停止（强制终止）".to_string())
+            }
+        }
     }
 }
 

@@ -139,21 +139,35 @@ pub async fn run_doctor() -> Result<Vec<DiagnosticResult>, String> {
         },
     });
     
-    // 检查环境变量文件
+    // 检查 AI 配置（env 文件 或 openclaw.json 中的 models）
     let env_path = platform::get_env_file_path();
     let env_exists = std::path::Path::new(&env_path).exists();
+    let has_models_in_config = {
+        let config_path = platform::get_config_file_path();
+        std::fs::read_to_string(&config_path)
+            .ok()
+            .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+            .and_then(|json| json.get("models")?.as_object().cloned())
+            .map(|models| !models.is_empty())
+            .unwrap_or(false)
+    };
+    let ai_configured = env_exists || has_models_in_config;
     results.push(DiagnosticResult {
-        name: "环境变量".to_string(),
-        passed: env_exists,
-        message: if env_exists {
+        name: "AI 配置".to_string(),
+        passed: ai_configured,
+        message: if env_exists && has_models_in_config {
+            "环境变量和模型配置均已就绪".to_string()
+        } else if has_models_in_config {
+            "模型已在 openclaw.json 中配置".to_string()
+        } else if env_exists {
             format!("环境变量文件存在: {}", env_path)
         } else {
-            "环境变量文件不存在".to_string()
+            "未检测到 AI 配置".to_string()
         },
-        suggestion: if env_exists {
+        suggestion: if ai_configured {
             None
         } else {
-            Some("请配置 AI API Key".to_string())
+            Some("请在 AI 配置页面添加服务商，或创建 ~/.openclaw/env 文件".to_string())
         },
     });
     

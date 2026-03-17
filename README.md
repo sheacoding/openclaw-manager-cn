@@ -1,41 +1,39 @@
-# 🦞 OpenClaw Manager
+# 🦞 OpenClaw Manager 中国版
 
-高性能跨平台 AI 助手管理工具，基于 **Tauri 2.0 + React + TypeScript + Rust** 构建。
+> 专为中国用户优化的 AI 助手管理工具 —— 国产大模型开箱即用，飞书一键配置，告别命令行。
 
-![Platform](https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-blue)
+基于 [OpenClaw Manager](https://github.com/miaoxworld/openclaw-manager) 深度定制，**Tauri 2.0 + React 18 + Rust** 驱动。
+
+![Platform](https://img.shields.io/badge/平台-macOS%20|%20Windows%20|%20Linux-blue)
 ![Tauri](https://img.shields.io/badge/Tauri-2.0-orange)
-![React](https://img.shields.io/badge/React-18-61DAFB)
-![Rust](https://img.shields.io/badge/Rust-1.70+-red)
+![Version](https://img.shields.io/badge/版本-0.0.7-green)
 
-## 📸 界面预览
+## 中国版有什么不同？
 
-### 📊 仪表盘概览
+| 特性 | 上游版本 | 中国版 |
+|------|---------|--------|
+| AI 服务商 | Anthropic、OpenAI 为主 | **深度集成国产大模型**：DeepSeek、通义千问、Kimi、智谱 GLM、MiniMax |
+| 飞书 | 基础配置 | **一键配置**：自动设置 dmPolicy、allowFrom、安装官方插件 |
+| API 地址 | 海外默认 | **国内 API 端点**：MiniMax 等默认使用国内地址 |
+| 服务商 Logo | Emoji 图标 | **官方品牌 Logo**（SVG 矢量图标） |
+| 模型列表 | 可能过时 | **实时更新**：GPT-5.4、Claude 4.6、Kimi K2.5、Qwen 3.5、DeepSeek V3.2 |
+| 界面语言 | 中英混合 | **全中文 UI** |
 
-实时监控服务状态，一键管理 AI 助手服务。
+## 界面预览
+
+### 仪表盘
+
+实时监控服务状态，一键管理 AI 助手。
 
 ![仪表盘](pic/dashboard.png)
 
-- 服务状态实时监控（端口、进程 ID、内存、运行时间）
-- 快捷操作：启动 / 停止 / 重启 / 诊断
-- 实时日志查看，支持自动刷新
+### AI 服务商配置
 
----
-
-### 🤖 AI 模型配置
-
-灵活配置多个 AI 提供商，支持自定义 API 地址。
+14+ AI 服务商，官方 Logo，最新模型预设。
 
 ![AI 配置](pic/ai.png)
 
-- 支持 14+ AI 提供商（Anthropic、OpenAI、DeepSeek、Moonshot、Gemini 等）
-- 自定义 API 端点，兼容 OpenAI 格式的第三方服务
-- 一键设置主模型，快速切换
-
----
-
-### 📱 消息渠道配置
-
-连接多种即时通讯平台，打造全渠道 AI 助手。
+### 消息渠道
 
 <table>
   <tr>
@@ -50,240 +48,188 @@
   </tr>
 </table>
 
-- **Telegram** - Bot Token 配置、私聊/群组策略
-- **飞书** - App ID/Secret、WebSocket 连接、多部署区域
-- **更多渠道** - Discord、Slack、WhatsApp、iMessage、微信、钉钉
+## 功能一览
 
----
+**AI 服务商**
+- 14+ 预设服务商：Anthropic、OpenAI、DeepSeek、通义千问、Kimi、智谱 GLM、MiniMax、Venice、OpenRouter、Ollama
+- 自定义服务商：兼容 OpenAI / Anthropic API 格式
+- 官方 SVG Logo、最新模型 ID 预设、一键设为主模型
 
-## ✨ 功能特性
+**消息渠道**
+- 飞书（一键配置 + 自动安装插件）、Telegram、Discord、Slack、WhatsApp、iMessage、微信、钉钉
+- 飞书自动修复：dmPolicy 和 allowFrom 配置自动纠正
 
-| 模块 | 功能 |
+**服务管理**
+- 启动 / 停止 / 重启 OpenClaw Gateway
+- 实时日志查看、自动刷新
+- Dashboard 一键打开 + Token 自动复制到剪贴板
+
+**系统诊断**
+- 环境检查：Node.js、OpenClaw 安装状态、AI 配置检测
+- 智能检测：同时检查 env 文件和 openclaw.json 中的模型配置
+- 运行 `openclaw doctor` 全面诊断
+
+**版本更新**
+- 启动时自动检查新版本
+- 一键更新 + 版本号自动刷新
+- 更新完成后横幅自动消失
+
+## 快速开始
+
+### 下载安装
+
+前往 [Releases](https://github.com/sheacoding/openclaw-manager-cn/releases) 下载对应平台的安装包：
+
+| 平台 | 格式 |
 |------|------|
-| 📊 **仪表盘** | 实时服务状态监控、进程内存统计、一键启动/停止/重启 |
-| 🤖 **AI 配置** | 14+ AI 提供商、自定义 API 地址、模型快速切换 |
-| 📱 **消息渠道** | Telegram、Discord、Slack、飞书、微信、iMessage、钉钉 |
-| ⚡ **服务管理** | 后台服务控制、实时日志、开机自启 |
-| 🧪 **测试诊断** | 系统环境检查、AI 连接测试、渠道连通性测试 |
+| macOS (Intel + Apple Silicon) | `.dmg` |
+| Windows | `.msi` / `.exe` |
+| Linux | `.deb` / `.AppImage` |
 
-## 🍎 macOS 常见问题
+### macOS 首次运行
 
-### "已损坏，无法打开" 错误
-
-macOS 的 Gatekeeper 安全机制可能会阻止运行未签名的应用。解决方法：
-
-**方法一：移除隔离属性（推荐）**
+macOS Gatekeeper 会阻止未签名应用，执行以下命令解除限制：
 
 ```bash
-# 对 .app 文件执行
 xattr -cr /Applications/OpenClaw\ Manager.app
-
-# 或者对 .dmg 文件执行（安装前）
-xattr -cr ~/Downloads/OpenClaw-Manager.dmg
 ```
 
-**方法二：通过系统偏好设置允许**
+或打开 **系统设置 > 隐私与安全性**，找到被阻止的应用，点击 **仍要打开**。
 
-1. 打开 **系统偏好设置** > **隐私与安全性**
-2. 在 "安全性" 部分找到被阻止的应用
-3. 点击 **仍要打开**
+### 配置 AI 服务商
 
-**方法三：临时禁用 Gatekeeper（不推荐）**
+1. 打开应用，进入 **AI 模型配置** 页面
+2. 点击 **添加 AI 服务商**
+3. 选择预设服务商或添加自定义服务商
+4. 填入 API Key，选择模型
+5. 设为主模型
 
-```bash
-# 禁用（需要管理员密码）
-sudo spctl --master-disable
+### 配置飞书
 
-# 安装完成后重新启用
-sudo spctl --master-enable
-```
+1. 进入 **消息渠道** > **飞书**
+2. 填入 App ID 和 App Secret（[飞书配置指南](src-tauri/docs/feishu-setup.md)）
+3. 保存 —— 应用会自动设置 dmPolicy、allowFrom、安装飞书插件
 
-### 权限问题
-
-如果应用无法正常访问文件或执行操作：
-
-**授予完全磁盘访问权限**
-
-1. 打开 **系统偏好设置** > **隐私与安全性** > **完全磁盘访问权限**
-2. 点击锁图标解锁，添加 **OpenClaw Manager**
-
-**重置权限**
-
-如果权限设置出现异常，可以尝试重置：
-
-```bash
-# 重置辅助功能权限数据库
-sudo tccutil reset Accessibility
-
-# 重置完全磁盘访问权限
-sudo tccutil reset SystemPolicyAllFiles
-```
-
-## 🚀 快速开始
+## 从源码构建
 
 ### 环境要求
 
-- **Node.js** >= 18.0
+- **Node.js** >= 22
 - **Rust** >= 1.70
-- **pnpm** (推荐) 或 npm
+- **npm**
 
-### macOS 额外依赖
+### 平台依赖
 
 ```bash
+# macOS
 xcode-select --install
-```
 
-### Windows 额外依赖
-
-- [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-- [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
-
-### Linux 额外依赖
-
-```bash
-# Ubuntu/Debian
+# Ubuntu / Debian
 sudo apt update
-sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-
-# Fedora
-sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file libxdo-devel
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget \
+  libssl-dev libayatana-appindicator3-dev librsvg2-dev \
+  libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev patchelf
 ```
 
-### 安装与运行
+Windows 需安装 [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) 和 [WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)。
+
+### 开发与构建
 
 ```bash
 # 克隆项目
-git clone https://github.com/miaoxworld/openclaw-manager.git
-cd openclaw-manager
+git clone https://github.com/sheacoding/openclaw-manager-cn.git
+cd openclaw-manager-cn
 
 # 安装依赖
 npm install
 
-# 开发模式运行
+# 开发模式（热重载）
 npm run tauri:dev
 
 # 构建发布版本
 npm run tauri:build
 ```
 
-## 📁 项目结构
+## 项目结构
 
 ```
-openclaw-manager/
-├── src-tauri/                 # Rust 后端
-│   ├── src/
-│   │   ├── main.rs            # 入口
-│   │   ├── commands/          # Tauri Commands
-│   │   │   ├── service.rs     # 服务管理
-│   │   │   ├── config.rs      # 配置管理
-│   │   │   ├── process.rs     # 进程管理
-│   │   │   └── diagnostics.rs # 诊断功能
-│   │   ├── models/            # 数据模型
-│   │   └── utils/             # 工具函数
-│   ├── Cargo.toml
-│   └── tauri.conf.json
-│
-├── src/                       # React 前端
-│   ├── App.tsx
+openclaw-manager-cn/
+├── src/                          # React 前端
+│   ├── App.tsx                   # 入口 + 更新检查
+│   ├── assets/providers/         # AI 服务商官方 Logo (SVG)
 │   ├── components/
-│   │   ├── Layout/            # 布局组件
-│   │   ├── Dashboard/         # 仪表盘
-│   │   ├── AIConfig/          # AI 配置
-│   │   ├── Channels/          # 渠道配置
-│   │   ├── Service/           # 服务管理
-│   │   ├── Testing/           # 测试诊断
-│   │   └── Settings/          # 设置
-│   └── styles/
-│       └── globals.css
+│   │   ├── Layout/               # 布局 (Header + Sidebar)
+│   │   ├── Dashboard/            # 仪表盘 + 快捷操作
+│   │   ├── AIConfig/             # AI 服务商配置 + ProviderLogo
+│   │   ├── Channels/             # 消息渠道配置
+│   │   ├── Testing/              # 系统诊断
+│   │   ├── Logs/                 # 日志查看器
+│   │   ├── Settings/             # 设置 (身份配置)
+│   │   └── Setup/                # 初始化向导
+│   ├── stores/appStore.ts        # Zustand 全局状态
+│   └── lib/logger.ts             # 前端日志
 │
-├── package.json
-├── vite.config.ts
-└── tailwind.config.js
+├── src-tauri/                    # Rust 后端
+│   ├── src/
+│   │   ├── main.rs               # Tauri 入口 + 插件注册
+│   │   ├── commands/
+│   │   │   ├── config.rs         # 配置管理 + AI 服务商预设
+│   │   │   ├── service.rs        # 服务生命周期管理
+│   │   │   ├── process.rs        # 进程与环境检查
+│   │   │   ├── diagnostics.rs    # 系统诊断
+│   │   │   └── installer.rs      # 安装 / 更新 / 版本检查
+│   │   ├── models/               # 数据模型
+│   │   └── utils/                # 工具 (平台检测、Shell、文件)
+│   ├── docs/feishu-setup.md      # 飞书配置指南
+│   └── tauri.conf.json           # Tauri 配置
+│
+├── .github/workflows/build.yml   # CI/CD 三平台自动构建
+└── package.json
 ```
 
-## 🛠️ 技术栈
+## 技术栈
 
-| 层级 | 技术 | 说明 |
+| 层级 | 技术 | 用途 |
 |------|------|------|
-| 前端框架 | React 18 | 用户界面 |
-| 状态管理 | Zustand | 轻量级状态管理 |
+| 桌面框架 | Tauri 2.0 | 跨平台原生应用 |
+| 前端 | React 18 + TypeScript | 用户界面 |
+| 状态管理 | Zustand | 轻量全局状态 |
 | 样式 | TailwindCSS | 原子化 CSS |
-| 动画 | Framer Motion | 流畅动画 |
-| 图标 | Lucide React | 精美图标 |
-| 后端 | Rust | 高性能系统调用 |
-| 跨平台 | Tauri 2.0 | 原生应用封装 |
+| 动画 | Framer Motion | 界面动效 |
+| 图标 | Lucide React | UI 图标 |
+| 后端 | Rust | 系统调用、进程管理、配置读写 |
+| CI/CD | GitHub Actions | 三平台自动构建与发布 |
 
-## 📦 构建产物
+## 配置文件
 
-运行 `npm run tauri:build` 后，会在 `src-tauri/target/release/bundle/` 生成：
+所有运行时配置存储在 `~/.openclaw/` 目录：
 
-| 平台 | 格式 |
-|------|------|
-| macOS | `.dmg`, `.app` |
-| Windows | `.msi`, `.exe` |
-| Linux | `.deb`, `.AppImage` |
-
-## 🎨 设计理念
-
-- **暗色主题**：护眼舒适，适合长时间使用
-- **现代 UI**：毛玻璃效果、流畅动画
-- **响应式**：适配不同屏幕尺寸
-- **高性能**：Rust 后端，极低内存占用
-
-## 🔧 开发命令
-
-```bash
-# 开发模式（热重载）
-npm run tauri:dev
-
-# 仅运行前端
-npm run dev
-
-# 构建前端
-npm run build
-
-# 构建完整应用
-npm run tauri:build
-
-# 检查 Rust 代码
-cd src-tauri && cargo check
-
-# 运行 Rust 测试
-cd src-tauri && cargo test
+```
+~/.openclaw/
+├── openclaw.json       # 主配置（models、channels、agents、plugins）
+├── env                 # 环境变量（可选，API Keys 也可直接写在 openclaw.json）
+├── gateway_token       # Gateway 认证 Token
+├── workspace/
+│   ├── USER.md         # 用户身份配置（名字、称呼、时区）
+│   └── IDENTITY.md     # AI 助手身份配置
+└── logs/               # 服务日志
 ```
 
-## 📝 配置说明
+## 贡献
 
-### Tauri 配置 (tauri.conf.json)
-
-- `app.windows` - 窗口配置
-- `bundle` - 打包配置
-- `plugins.shell.scope` - Shell 命令白名单
-- `plugins.fs.scope` - 文件访问白名单
-
-### 环境变量
-
-应用会读取 `~/.openclaw/env` 中的环境变量配置。
-
-## 🤝 贡献指南
-
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
+1. Fork 本项目
+2. 创建功能分支 (`git checkout -b feature/your-feature`)
+3. 提交更改 (`git commit -m 'feat: your feature'`)
+4. 推送分支 (`git push origin feature/your-feature`)
 5. 创建 Pull Request
 
-## 📄 许可证
+## 相关链接
+
+- [OpenClaw Manager 上游](https://github.com/miaoxworld/openclaw-manager) - 原版项目
+- [OpenClaw Installer](https://github.com/miaoxworld/OpenClawInstaller) - 命令行安装工具
+- [飞书配置指南](src-tauri/docs/feishu-setup.md) - 飞书机器人详细配置步骤
+- [Tauri 2.0 文档](https://v2.tauri.app/)
+
+## 许可证
 
 MIT License - 详见 [LICENSE](LICENSE)
-
-## 🔗 相关链接
-
-- [OpenClaw Manager](https://github.com/miaoxworld/openclaw-manager) - 图形界面版本（本项目）
-- [OpenClawInstaller](https://github.com/miaoxworld/OpenClawInstaller) - 命令行版本
-- [Tauri 官方文档](https://tauri.app/)
-- [React 官方文档](https://react.dev/)
-
----
-
-**Made with ❤️ by OpenClaw Team**

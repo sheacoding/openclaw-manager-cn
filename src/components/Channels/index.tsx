@@ -23,8 +23,10 @@ import {
   Package,
   AlertTriangle,
   Trash2,
+  BookOpen,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { FeishuGuide } from './FeishuGuide';
 
 interface FeishuPluginStatus {
   installed: boolean;
@@ -121,12 +123,18 @@ const channelInfo: Record<
         { value: 'feishu', label: '国内 (feishu.cn)' },
         { value: 'lark', label: '海外 (larksuite.com)' },
       ]},
+      { key: 'dmPolicy', label: '私聊策略', type: 'select', options: [
+        { value: 'open', label: '开放模式 (推荐)' },
+        { value: 'pairing', label: '配对模式' },
+        { value: 'allowlist', label: '白名单模式' },
+        { value: 'disabled', label: '禁用' },
+      ]},
       { key: 'requireMention', label: '需要 @提及', type: 'select', options: [
         { value: 'true', label: '是' },
         { value: 'false', label: '否' },
       ]},
     ],
-    helpText: '从飞书开放平台获取凭证，Chat ID 可从群聊设置中获取',
+    helpText: '从飞书开放平台获取凭证，Chat ID 可从群聊设置中获取。私聊策略推荐使用"开放模式"以接收所有消息。',
   },
   imessage: {
     name: 'iMessage',
@@ -208,9 +216,12 @@ export function Channels() {
   const [feishuPluginStatus, setFeishuPluginStatus] = useState<FeishuPluginStatus | null>(null);
   const [feishuPluginLoading, setFeishuPluginLoading] = useState(false);
   const [feishuPluginInstalling, setFeishuPluginInstalling] = useState(false);
-  
+
   // 跟踪哪些密码字段显示明文
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+
+  // 飞书配置指南 Modal 状态
+  const [showFeishuGuide, setShowFeishuGuide] = useState(false);
 
   const togglePasswordVisibility = (fieldKey: string) => {
     setVisiblePasswords((prev) => {
@@ -423,12 +434,12 @@ export function Channels() {
 
   const handleSave = async () => {
     if (!selectedChannel) return;
-    
+
     setSaving(true);
     try {
       const channel = channels.find((c) => c.id === selectedChannel);
       if (!channel) return;
-      
+
       // 转换表单值
       const config: Record<string, unknown> = {};
       Object.entries(configForm).forEach(([key, value]) => {
@@ -440,17 +451,35 @@ export function Channels() {
           config[key] = value;
         }
       });
-      
+
       await invoke('save_channel_config', {
         channel: {
           ...channel,
           config,
         },
       });
-      
+
+      // 如果是飞书渠道，自动检查并安装插件
+      if (channel.id === 'feishu') {
+        try {
+          const status = await invoke<FeishuPluginStatus>('check_feishu_plugin');
+          if (!status.installed) {
+            console.log('飞书插件未安装，开始自动安装...');
+            await invoke<string>('install_feishu_plugin');
+            console.log('飞书插件安装成功');
+            // 刷新插件状态
+            await checkFeishuPlugin();
+          }
+        } catch (pluginError) {
+          console.error('飞书插件安装失败:', pluginError);
+          // 不阻断保存流程，只是提示用户
+          alert('配置已保存，但飞书插件安装失败。请手动安装: npx -y @larksuite/openclaw-lark-tools update');
+        }
+      }
+
       // 刷新列表
       await fetchChannels();
-      
+
       alert('渠道配置已保存！');
     } catch (e) {
       console.error('保存失败:', e);
@@ -593,7 +622,7 @@ export function Channels() {
                         <div className="flex-1">
                           <p className="text-green-400 font-medium">飞书插件已安装</p>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            {feishuPluginStatus.plugin_name || '@m1heng-clawd/feishu'}
+                            {feishuPluginStatus.plugin_name || '@larksuite/openclaw-lark-tools'}
                             {feishuPluginStatus.version && ` v${feishuPluginStatus.version}`}
                           </p>
                         </div>
@@ -606,7 +635,7 @@ export function Channels() {
                           <div className="flex-1">
                             <p className="text-amber-400 font-medium">需要安装飞书插件</p>
                             <p className="text-xs text-gray-400 mt-1">
-                              飞书渠道需要先安装 @m1heng-clawd/feishu 插件才能使用。
+                              飞书渠道需要先安装飞书官方插件才能使用。
                             </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                               <button
@@ -630,7 +659,7 @@ export function Channels() {
                               </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-2">
-                              或手动执行: <code className="px-1.5 py-0.5 bg-dark-600 rounded text-gray-400">openclaw plugins install @m1heng-clawd/feishu</code>
+                              或手动执行: <code className="px-1.5 py-0.5 bg-dark-600 rounded text-gray-400">npx -y @larksuite/openclaw-lark-tools update</code>
                             </p>
                           </div>
                         </div>
@@ -762,7 +791,7 @@ export function Channels() {
                       )}
                       保存配置
                     </button>
-                    
+
                     {/* 快速测试按钮 */}
                     <button
                       onClick={handleQuickTest}
@@ -776,7 +805,18 @@ export function Channels() {
                       )}
                       快速测试
                     </button>
-                    
+
+                    {/* 飞书配置指南按钮 */}
+                    {currentChannel.channel_type === 'feishu' && (
+                      <button
+                        onClick={() => setShowFeishuGuide(true)}
+                        className="btn-secondary flex items-center gap-2 text-blue-400 hover:text-blue-300"
+                      >
+                        <BookOpen size={16} />
+                        查看配置指南
+                      </button>
+                    )}
+
                     {/* 清空配置按钮 */}
                     {!showClearConfirm ? (
                       <button
@@ -851,6 +891,47 @@ export function Channels() {
           </div>
         </div>
       </div>
+
+      {/* 飞书配置指南 Modal */}
+      {showFeishuGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-dark-700 rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-dark-500">
+              <div className="flex items-center gap-3">
+                <BookOpen size={24} className="text-blue-400" />
+                <h2 className="text-xl font-semibold text-white">飞书机器人配置指南</h2>
+              </div>
+              <button
+                onClick={() => setShowFeishuGuide(false)}
+                className="p-2 hover:bg-dark-600 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-400" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <FeishuGuide />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-dark-500 flex justify-end">
+              <button
+                onClick={() => setShowFeishuGuide(false)}
+                className="btn-secondary"
+              >
+                关闭
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

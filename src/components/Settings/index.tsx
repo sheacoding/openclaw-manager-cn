@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   User,
@@ -28,19 +28,57 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
     userName: '主人',
     timezone: 'Asia/Shanghai',
   });
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showUninstallConfirm, setShowUninstallConfirm] = useState(false);
   const [uninstalling, setUninstalling] = useState(false);
   const [uninstallResult, setUninstallResult] = useState<InstallResult | null>(null);
 
+  // 加载配置
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  const loadConfig = async () => {
+    try {
+      // 从 IDENTITY.md 和 USER.md 读取配置
+      const userIdentity = await invoke<{
+        bot_name: string;
+        user_name: string;
+        timezone: string;
+      }>('get_user_identity');
+
+      setIdentity({
+        botName: userIdentity.bot_name,
+        userName: userIdentity.user_name,
+        timezone: userIdentity.timezone,
+      });
+    } catch (e) {
+      console.error('加载配置失败:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      // TODO: 保存身份配置
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      alert('设置已保存！');
+      // 保存到 IDENTITY.md 和 USER.md 文件
+      await invoke('save_user_identity', {
+        identity: {
+          bot_name: identity.botName,
+          user_name: identity.userName,
+          timezone: identity.timezone,
+        },
+      });
+
+      // 重新加载配置验证
+      await loadConfig();
+
+      alert('设置已保存！下次新开对话后生效。');
     } catch (e) {
       console.error('保存失败:', e);
+      alert(`保存失败: ${e}`);
     } finally {
       setSaving(false);
     }
@@ -84,7 +122,12 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
 
   return (
     <div className="h-full overflow-y-auto scroll-container pr-2">
-      <div className="max-w-2xl space-y-6">
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 size={32} className="animate-spin text-claw-400" />
+        </div>
+      ) : (
+        <div className="max-w-2xl space-y-6">
         {/* 身份配置 */}
         <div className="bg-dark-700 rounded-2xl p-6 border border-dark-500">
           <div className="flex items-center gap-3 mb-6">
@@ -93,7 +136,7 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-white">身份配置</h3>
-              <p className="text-xs text-gray-500">设置 AI 助手的名称和称呼</p>
+              <p className="text-xs text-gray-500">配置写入记忆文件，下次新对话起效</p>
             </div>
           </div>
 
@@ -111,6 +154,7 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
                 placeholder="Clawd"
                 className="input-base"
               />
+              <p className="text-xs text-gray-600 mt-1">写入 IDENTITY.md，下次新对话后 AI 会认识自己的新名字</p>
             </div>
 
             <div>
@@ -126,6 +170,7 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
                 placeholder="主人"
                 className="input-base"
               />
+              <p className="text-xs text-gray-600 mt-1">写入 USER.md，下次新对话后 AI 会用此称呼你</p>
             </div>
 
             <div>
@@ -347,6 +392,7 @@ export function Settings({ onEnvironmentChange }: SettingsProps) {
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }
